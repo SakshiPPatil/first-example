@@ -16,6 +16,8 @@ jobs:
       EC2_USER: "ubuntu"
       APP_JAR_NAME: "demo-0.0.1-SNAPSHOT.jar"
       EC2_APP_PATH: "/home/ubuntu/app"
+      # Set the base directory for the Spring Boot project
+      APP_BASE_DIR: "first-example"
 
     steps:
       - name: Checkout code
@@ -29,9 +31,11 @@ jobs:
           cache: 'maven'
 
       # Step 1: Build the application and verify the JAR file exists.
+      # The `run` command now uses `cd` to navigate to the project directory before running Maven.
       - name: Build with Maven and Verify JAR
         run: |
           echo "Building application with Maven..."
+          cd ${{ env.APP_BASE_DIR }}
           mvn clean package -DskipTests
           if [ ! -f "target/${{ env.APP_JAR_NAME }}" ]; then
             echo "❌ Error: JAR file was not found after the build."
@@ -40,9 +44,11 @@ jobs:
           echo "✅ JAR file found."
 
       # Step 2: Run unit and integration tests.
+      # The `run` command also navigates to the project directory first.
       - name: Run unit and integration tests
         run: |
           echo "Running Maven tests..."
+          cd ${{ env.APP_BASE_DIR }}
           mvn test
 
       # Step 3: Transfer the JAR file to the EC2 instance.
@@ -52,7 +58,8 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/${{ env.APP_JAR_NAME }}"
+          # The source path is now correctly pointing to the JAR file inside the project directory.
+          source: "${{ env.APP_BASE_DIR }}/target/${{ env.APP_JAR_NAME }}"
           target: ${{ env.EC2_APP_PATH }}
 
       # Step 4: SSH into the EC2 instance and run deployment commands.
@@ -63,13 +70,12 @@ jobs:
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           # The script to run on the EC2 instance.
-          # We use environment variables for sensitive database credentials.
           script: |
             echo "Navigating to app directory on EC2..."
             cd ${{ env.EC2_APP_PATH }}
             
             # Check if the file exists on the EC2 instance.
-            if [ ! -f "target/${{ env.APP_JAR_NAME }}" ]; then
+            if [ ! -f "${{ env.APP_JAR_NAME }}" ]; then
               echo "❌ Error: The JAR file was not found on the EC2 instance."
               exit 1
             fi
@@ -77,13 +83,11 @@ jobs:
             echo "✅ JAR file found on EC2. Stopping old process and starting new one..."
             sudo fuser -k 8080/tcp || true
             
-            # Start the application with environment variables for Aurora.
-            # You MUST set these environment variables on your EC2 instance's shell profile (e.g., .bashrc).
-            export DB_URL="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/<your-database-name>"
-            export DB_USER="admin"
-            export DB_PASS="admin123"
+            export DB_URL="jdbc:mysql://<your-aurora-cluster-endpoint>:3306/<your-database-name>"
+            export DB_USER="your_aurora_master_username"
+            export DB_PASS="your_aurora_master_password"
             
-            nohup java -jar target/${{ env.APP_JAR_NAME }} > application.log 2>&1 &
+            nohup java -jar ${{ env.APP_JAR_NAME }} > application.log 2>&1 &
             sleep 10
             
             # Check the status of the application.
