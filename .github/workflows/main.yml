@@ -52,7 +52,8 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # The source path is now correctly pointing to the JAR file in the target directory.
+          # The source path is now correctly pointing to the JAR file in the target directory
+          # relative to the repository root.
           source: "target/${{ env.APP_JAR_NAME }}"
           target: ${{ env.EC2_APP_PATH }}
 
@@ -77,9 +78,9 @@ jobs:
             echo "✅ JAR file found on EC2. Stopping old process and starting new one..."
             sudo fuser -k 8080/tcp || true
             
-            export DB_URL="jdbc:mysql://<your-aurora-cluster-endpoint>:3306/<your-database-name>"
-            export DB_USER="your_aurora_master_username"
-            export DB_PASS="your_aurora_master_password"
+            export DB_URL="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/backend"
+            export DB_USER="admin"
+            export DB_PASS="admin123"
             
             nohup java -jar ${{ env.APP_JAR_NAME }} > application.log 2>&1 &
             sleep 10
