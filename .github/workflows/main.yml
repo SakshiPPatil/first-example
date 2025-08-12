@@ -1,3 +1,7 @@
+# File: .github/workflows/deploy-to-ec2.yml
+# This workflow deploys a Spring Boot application to an AWS EC2 instance.
+# It includes running tests and using environment variables for the database.
+
 name: Deploy Spring Boot App to EC2 (with Aurora)
 
 on:
