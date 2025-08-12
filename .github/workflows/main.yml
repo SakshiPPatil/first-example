@@ -1,7 +1,6 @@
 # File: .github/workflows/deploy-to-ec2.yml
 # This workflow deploys a Spring Boot application to an AWS EC2 instance.
 # It includes running tests and using environment variables for the database.
-
 name: Deploy Spring Boot App to EC2 (with Aurora)
 
 on:
@@ -13,7 +12,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    
+
     # Environment variables for the deployment process.
     env:
       EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -55,7 +54,6 @@ jobs:
           mvn test
 
       # New step: Prepare the EC2 app directory for file transfer.
-     
       # Step 3: Transfer the JAR file to the EC2 instance.
       - name: Copy file to EC2
         uses: appleboy/scp-action@master
@@ -65,7 +63,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/${{ env.APP_JAR_NAME }}"
           target: ${{ env.EC2_APP_PATH }}
-      
+
       # New step: Verify the file was copied to the EC2 instance.
       - name: Verify JAR on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -92,32 +90,40 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           # The script to run on the EC2 instance.
           script: |
+            # Navigating to the app directory on EC2.
             echo "Navigating to app directory on EC2..."
-            cd ${{ env.EC2_APP_PATH }}/target
-            
-            # Check if the file exists on the EC2 instance.
-            if [ ! -f "${{ env.APP_JAR_NAME }}" ]; then
+            cd /home/ubuntu/app/target
+
+            # Check if the JAR file exists on the EC2 instance.
+            if [ ! -f "demo-0.0.1-SNAPSHOT.jar" ]; then
               echo "❌ Error: The JAR file was not found on the EC2 instance."
               exit 1
             fi
-            
+
             echo "✅ JAR file found on EC2. Stopping old process and starting new one..."
+            # Stop any existing process running on port 8080. The `|| true` prevents the script from failing if no process is found.
             sudo fuser -k 8080/tcp || true
-            
-            export DB_URL="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/backend"
-            export DB_USER="admin"
-            export DB_PASS="admin123"
-            
-            nohup java -jar ${{ env.APP_JAR_NAME }} > application.log 2>&1 &
+
+            # Explicitly use the 'java' executable located inside the $JAVA_HOME/bin directory.
+            # The `nohup` command is used to run the process in the background, detached from the terminal session.
+            # We also pass the database environment variables directly to the `java` command.
+            nohup "$JAVA_HOME"/bin/java \
+              -Dspring.datasource.url="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/backend" \
+              -Dspring.datasource.username="admin" \
+              -Dspring.datasource.password="admin123" \
+              -jar demo-0.0.1-SNAPSHOT.jar > application.log 2>&1 &
+
+            # Wait for 10 seconds to allow the application to start.
             sleep 10
-            
-            # Check the status of the application.
+
+            # Check the status of the application by seeing if anything is listening on port 8080.
             if sudo ss -ltnp | grep :8080; then
               echo "✅ Application successfully started on port 8080."
             else
               echo "❌ Application failed to start. Printing logs..."
+              # If it failed, print the application log for debugging.
               cat application.log
               exit 1
             fi
-            
+
             echo "Deployment finished."
