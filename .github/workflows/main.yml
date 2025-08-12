@@ -43,6 +43,11 @@ jobs:
           fi
           echo "✅ JAR file found."
 
+      # Diagnostic step: List files in the target directory to confirm JAR exists.
+      - name: List target directory contents
+        run: |
+          ls -R target/
+
       # Step 2: Run unit and integration tests.
       - name: Run unit and integration tests
         run: |
