@@ -16,12 +16,13 @@ jobs:
       EC2_USER: "ubuntu"
       APP_JAR_NAME: "demo-0.0.1-SNAPSHOT.jar"
       EC2_APP_PATH: "/home/ubuntu/app"
-      # Set the base directory for the Spring Boot project
-      APP_BASE_DIR: "first-example"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        # Explicitly set the path to checkout the code to, matching the repository root.
+        with:
+          path: 'first-example'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -29,13 +30,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
+          # Tell Maven where to find the pom.xml file.
+          settings-path: ${{ github.workspace }}/first-example
 
       # Step 1: Build the application and verify the JAR file exists.
-      # The `run` command now uses `cd` to navigate to the project directory before running Maven.
+      # The `run` command now runs directly from the repository root.
       - name: Build with Maven and Verify JAR
         run: |
           echo "Building application with Maven..."
-          cd ${{ env.APP_BASE_DIR }}
+          cd first-example
           mvn clean package -DskipTests
           if [ ! -f "target/${{ env.APP_JAR_NAME }}" ]; then
             echo "❌ Error: JAR file was not found after the build."
@@ -44,11 +47,11 @@ jobs:
           echo "✅ JAR file found."
 
       # Step 2: Run unit and integration tests.
-      # The `run` command also navigates to the project directory first.
+      # The `run` command also runs directly from the repository root.
       - name: Run unit and integration tests
         run: |
           echo "Running Maven tests..."
-          cd ${{ env.APP_BASE_DIR }}
+          cd first-example
           mvn test
 
       # Step 3: Transfer the JAR file to the EC2 instance.
@@ -58,8 +61,8 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # The source path is now correctly pointing to the JAR file inside the project directory.
-          source: "${{ env.APP_BASE_DIR }}/target/${{ env.APP_JAR_NAME }}"
+          # The source path is now correctly pointing to the JAR file in the target directory.
+          source: "first-example/target/${{ env.APP_JAR_NAME }}"
           target: ${{ env.EC2_APP_PATH }}
 
       # Step 4: SSH into the EC2 instance and run deployment commands.
