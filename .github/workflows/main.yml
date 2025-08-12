@@ -77,7 +77,7 @@ jobs:
             echo "Verifying JAR file on EC2..."
             echo "Contents of ${{ env.EC2_APP_PATH }}:"
             ls -la ${{ env.EC2_APP_PATH }}
-            if [ ! -f "${{ env.EC2_APP_PATH }}/${{ env.APP_JAR_NAME }}" ]; then
+            if [ ! -f "${{ env.EC2_APP_PATH }}/target/${{ env.APP_JAR_NAME }}" ]; then
               echo "❌ Error: The JAR file was not found on the EC2 instance after transfer."
               exit 1
             fi
