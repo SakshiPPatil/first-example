@@ -54,6 +54,19 @@ jobs:
           echo "Running Maven tests..."
           mvn test
 
+      # New step: Prepare the EC2 app directory for file transfer.
+      - name: Prepare EC2 directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Ensuring app directory exists and has correct permissions..."
+            mkdir -p ${{ env.EC2_APP_PATH }}
+            sudo chown ${{ env.EC2_USER }}:${{ env.EC2_USER }} ${{ env.EC2_APP_PATH }}
+            echo "Directory ready."
+      
       # Step 3: Transfer the JAR file to the EC2 instance.
       - name: Copy file to EC2
         uses: appleboy/scp-action@master
