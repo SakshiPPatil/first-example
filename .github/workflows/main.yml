@@ -19,6 +19,10 @@ jobs:
       EC2_USER: "ubuntu"
       APP_JAR_NAME: "demo-0.0.1-SNAPSHOT.jar"
       EC2_APP_PATH: "/home/ubuntu/app"
+      # Pass database secrets directly as environment variables for the SSH action
+      DB_URL: ${{ secrets.DB_URL }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASS: ${{ secrets.DB_PASS }}
 
     steps:
       - name: Checkout code
@@ -88,6 +92,8 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # Pass the DB credentials from the workflow's `env` section to the script as environment variables.
+          envs: DB_URL,DB_USER,DB_PASS
           # The script to run on the EC2 instance.
           script: |
             # Navigating to the app directory on EC2.
@@ -106,11 +112,11 @@ jobs:
 
             # Explicitly use the 'java' executable located inside the $JAVA_HOME/bin directory.
             # The `nohup` command is used to run the process in the background, detached from the terminal session.
-            # We also pass the database environment variables directly to the `java` command.
+            # We now use the environment variables passed via the `envs` input to the action.
             nohup "$JAVA_HOME"/bin/java \
-              -Dspring.datasource.url="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/backend" \
-              -Dspring.datasource.username="admin" \
-              -Dspring.datasource.password="admin123" \
+              -Dspring.datasource.url="$DB_URL" \
+              -Dspring.datasource.username="$DB_USER" \
+              -Dspring.datasource.password="$DB_PASS" \
               -jar demo-0.0.1-SNAPSHOT.jar > application.log 2>&1 &
 
             # Wait for 10 seconds to allow the application to start.
