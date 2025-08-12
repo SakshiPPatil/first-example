@@ -76,7 +76,7 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "${{ github.workspace }}/${{ env.APP_JAR_NAME }}"
+          source: "${{ github.workspace }}/target/${{ env.APP_JAR_NAME }}"
           target: ${{ env.EC2_APP_PATH }}
       
       # New step: Verify the file was copied to the EC2 instance.
