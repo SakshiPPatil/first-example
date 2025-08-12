@@ -93,7 +93,7 @@ jobs:
           # The script to run on the EC2 instance.
           script: |
             echo "Navigating to app directory on EC2..."
-            cd ${{ env.EC2_APP_PATH }}
+            cd ${{ env.EC2_APP_PATH }}/target
             
             # Check if the file exists on the EC2 instance.
             if [ ! -f "${{ env.APP_JAR_NAME }}" ]; then
