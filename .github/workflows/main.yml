@@ -43,47 +43,84 @@ jobs:
           fi
           echo "✅ JAR file found."
 
+      # Diagnostic step: List files in the target directory to confirm JAR exists.
+      - name: List target directory contents
+        run: |
+          ls -R target/
+
       # Step 2: Run unit and integration tests.
       - name: Run unit and integration tests
         run: |
           echo "Running Maven tests..."
           mvn test
 
-      # Consolidated Step: Prepare the EC2 directory, transfer the files, and deploy the application.
-      - name: Deploy to EC2
+      # New step: Prepare the EC2 app directory for file transfer.
+      - name: Prepare EC2 directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Preparing EC2 directory..."
-            # Create and set permissions for the deployment directory.
+            echo "Ensuring app directory exists and has correct permissions..."
             mkdir -p ${{ env.EC2_APP_PATH }}
             sudo chown -R ${{ env.EC2_USER }}:${{ env.EC2_USER }} ${{ env.EC2_APP_PATH }}
             chmod 755 ${{ env.EC2_APP_PATH }}
+            echo "Directory ready. Final permissions:"
+            ls -la ${{ env.EC2_APP_PATH }}
+      
+      # Step 3: Transfer the JAR file to the EC2 instance.
+      - name: Copy file to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "${{ github.workspace }}/target/${{ env.APP_JAR_NAME }}"
+          target: ${{ env.EC2_APP_PATH }}
+      
+      # New step: Verify the file was copied to the EC2 instance.
+      - name: Verify JAR on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Verifying JAR file on EC2..."
+            echo "Contents of ${{ env.EC2_APP_PATH }}:"
+            ls -la ${{ env.EC2_APP_PATH }}
+            if [ ! -f "${{ env.EC2_APP_PATH }}/${{ env.APP_JAR_NAME }}" ]; then
+              echo "❌ Error: The JAR file was not found on the EC2 instance after transfer."
+              exit 1
+            fi
+            echo "✅ JAR file successfully transferred to EC2."
 
-            echo "Transferring and deploying application..."
-            # Use 'tar' and 'ssh' to package and transfer the files in a single stream.
-            # This is more reliable than a separate scp-action.
-            tar -czf - target/ | ssh -i ${{ secrets.EC2_SSH_KEY }} -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "tar -xzf - -C ${{ env.EC2_APP_PATH }}"
-
-            cd ${{ env.EC2_APP_PATH }}/target
+      # Step 4: SSH into the EC2 instance and run deployment commands.
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # The script to run on the EC2 instance.
+          script: |
+            echo "Navigating to app directory on EC2..."
+            cd ${{ env.EC2_APP_PATH }}
             
-            # Check if the file exists on the EC2 instance after transfer.
+            # Check if the file exists on the EC2 instance.
             if [ ! -f "${{ env.APP_JAR_NAME }}" ]; then
               echo "❌ Error: The JAR file was not found on the EC2 instance."
               exit 1
             fi
             
-            echo "✅ JAR file found. Stopping old process and starting new one..."
+            echo "✅ JAR file found on EC2. Stopping old process and starting new one..."
             sudo fuser -k 8080/tcp || true
             
             export DB_URL="jdbc:mysql://backend.cluster-c854mo04o1n3.us-east-1.rds.amazonaws.com:3306/backend"
             export DB_USER="admin"
             export DB_PASS="admin123"
             
-            # Start the application with environment variables.
             nohup java -jar ${{ env.APP_JAR_NAME }} > application.log 2>&1 &
             sleep 10
             
