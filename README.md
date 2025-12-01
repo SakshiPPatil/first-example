@@ -1,21 +1,15 @@
-# Deploy the application springboot application using github action on ec2 instance
+# Spring Boot CI/CD Pipeline with Docker
 
-1) create the springboot application on local machine. <br/>
-2)  note: pom.xml file is important(in this file it shows the connectivity to the database, jar filename which is created the after the maven run).<br/>
-3)  resources-> application.properties-> provide the aurora database(url),username,password.<br/>
-4)  push all code on the github repo.<br/>
-5)  after create the workflow file(github action) its path is .github/workflow/main.yml: (main.yml is workflow file)<br/>
- **steps:** <br/>
-   i) define the actions like which os is used.<br/>
-   ii) define the environment variables.<br/>
-   iii) setup the java (setup jdk-17) and maven.<br/>
-   iv) build the maven<br/>
-   
-   ```
-   mvn clean package -DskipTests
-   ```
-      
-   It creates the jar file. and the location of jar file in local machine is target/jarfile_name. <br/>
+This project demonstrates a complete CI/CD pipeline for a Spring Boot application.
+
+## Features
+
+- Standalone Spring Boot application (no database required)
+- GitHub Actions CI/CD pipeline
+- Docker support
+- SonarQube integration
+- Security scanning with Trivy
+- Deployment automation
 
   6)  Run unit and integration tests. <br/>
   
