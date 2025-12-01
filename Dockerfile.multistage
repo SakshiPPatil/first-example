@@ -1,0 +1,38 @@
+# Stage 1: Build the application
+FROM maven:3.8-openjdk-17 AS builder
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the pom.xml and download dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy the source code and build the application
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Stage 2: Runtime image
+FROM eclipse-temurin:17-jre-alpine
+
+# Set the working directory
+WORKDIR /app
+
+# Create a non-root user for security
+RUN addgroup -g 1001 -S appuser && \
+    adduser -u 1001 -S appuser -G appuser
+
+# Copy the JAR file from the builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Change ownership of the JAR file to the appuser
+RUN chown appuser:appuser app.jar
+
+# Switch to the non-root user
+USER appuser
+
+# Expose port 8080
+EXPOSE 8080
+
+# Define the entry point for the container
+ENTRYPOINT ["java", "-jar", "app.jar"]
